@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Depth Text</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #0b0b0d;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .depth-text {
+    display: inline-block;
+    perspective: var(--depth-text-perspective);
+    perspective-origin: 50% 48%;
+    isolation: isolate;
+  }
+
+  .depth-text__stage {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    transform-style: preserve-3d;
+    transform: rotateX(-2.4deg) rotateY(3.15deg);
+    transform-origin: 50% 50%;
+    will-change: transform;
+  }
+
+  .depth-text__layer,
+  .depth-text__face {
+    grid-area: 1 / 1;
+    display: inline-block;
+    font-size: var(--depth-text-font-size);
+    font-weight: var(--depth-text-font-weight);
+    line-height: 0.86;
+    letter-spacing: -0.065em;
+    white-space: nowrap;
+    user-select: none;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    font-kerning: normal;
+    text-rendering: geometricPrecision;
+  }
+
+  .depth-text__layer {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    filter: saturate(0.95) brightness(0.92);
+    pointer-events: none;
+  }
+
+  .depth-text__face {
+    position: relative;
+    z-index: 1;
+    color: var(--depth-text-face-color);
+    text-shadow: var(--depth-text-shadow);
+    transform: translateZ(0.6px);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .depth-text { cursor: default; }
+  }
+</style>
+</head>
+<body>
+
+<span id="dt" class="depth-text"></span>
+
+<script>
+(function () {
+  const MAX_LAYERS = 64;
+  const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
+  function getLayerColor(faceColor, depthColor, index, total) {
+    const progress = total <= 1 ? 1 : index / total;
+    const eased = progress * progress;
+    const faceMix = Math.round((1 - eased) * 72 + 4);
+    return `color-mix(in srgb, ${faceColor} ${faceMix}%, ${depthColor})`;
+  }
+
+  function getTransform(rx, ry) {
+    return `rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg)`;
+  }
+
+  function createDepthText(root, options) {
+    const props = Object.assign({
+      text: 'Elevate',
+      layers: 34,
+      depth: 2.4,
+      faceColor: '#f8fafc',
+      depthColor: '#7c3aed',
+      tilt: 7.5,
+      pointerTracking: true,
+      smoothing: 0.14,
+      perspective: 900,
+      autoOrbit: true,
+      orbitSpeed: 0.35,
+      fontSize: 'clamp(3rem, 12vw, 7rem)',
+      fontWeight: 900,
+      shadow: true
+    }, options);
+
+    const safeLayers = clamp(Math.round(props.layers) || 1, 2, MAX_LAYERS);
+    const safeDepth = clamp(props.depth || 0, 0, 12);
+    const safeTilt = clamp(props.tilt || 0, 0, 12);
+    const safeSmoothing = clamp(props.smoothing || 0.14, 0.02, 0.35);
+    const safePerspective = clamp(props.perspective || 900, 300, 2000);
+    const safeOrbitSpeed = clamp(props.orbitSpeed || 0, 0, 2);
+
+    const baseRotation = { x: -safeTilt * 0.32, y: safeTilt * 0.42 };
+
+    root.style.setProperty('--depth-text-perspective', `${safePerspective}px`);
+    root.style.setProperty('--depth-text-font-size', props.fontSize);
+    root.style.setProperty('--depth-text-font-weight', props.fontWeight);
+    root.style.setProperty('--depth-text-face-color', props.faceColor);
+    root.style.setProperty('--depth-text-depth-color', props.depthColor);
+    root.style.setProperty(
+      '--depth-text-shadow',
+      props.shadow
+        ? `0 22px 34px color-mix(in srgb, ${props.depthColor} 36%, transparent), 0 4px 8px rgba(0, 0, 0, 0.28)`
+        : 'none'
+    );
+
+    const stage = document.createElement('span');
+    stage.className = 'depth-text__stage';
+
+    for (let layerIndex = 0; layerIndex < safeLayers; layerIndex++) {
+      const index = safeLayers - layerIndex;
+      const layer = document.createElement('span');
+      layer.className = 'depth-text__layer';
+      layer.setAttribute('aria-hidden', 'true');
+      layer.style.color = getLayerColor(props.faceColor, props.depthColor, index, safeLayers);
+      layer.style.transform = `translateZ(${-index * safeDepth}px)`;
+      layer.textContent = props.text;
+      stage.appendChild(layer);
+    }
+
+    const face = document.createElement('span');
+    face.className = 'depth-text__face';
+    face.textContent = props.text;
+    stage.appendChild(face);
+
+    root.appendChild(stage);
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const canTrackPointer = props.pointerTracking && finePointer && !reducedMotion;
+
+    if (reducedMotion) {
+      stage.style.transform = getTransform(baseRotation.x, baseRotation.y);
+      return;
+    }
+
+    let activePointer = false;
+    let startTime = performance.now();
+    const current = { ...baseRotation };
+    const target = { ...baseRotation };
+
+    function applyTransform() {
+      stage.style.transform = getTransform(current.x, current.y);
+    }
+
+    function handlePointerMove(event) {
+      const rect = root.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      activePointer = true;
+      const x = clamp((event.clientX - (rect.left + rect.width / 2)) / (rect.width * 0.8), -1, 1);
+      const y = clamp((event.clientY - (rect.top + rect.height / 2)) / (rect.height * 0.8), -1, 1);
+      target.x = baseRotation.x - y * safeTilt;
+      target.y = baseRotation.y + x * safeTilt;
+    }
+
+    function handlePointerLeave() {
+      activePointer = false;
+      target.x = baseRotation.x;
+      target.y = baseRotation.y;
+    }
+
+    if (canTrackPointer) {
+      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointerleave', handlePointerLeave);
+      window.addEventListener('blur', handlePointerLeave);
+    }
+
+    function tick(now) {
+      if ((!canTrackPointer || !activePointer) && props.autoOrbit) {
+        const elapsed = (now - startTime) / 1000;
+        const orbit = elapsed * safeOrbitSpeed * Math.PI * 2;
+        const fallbackAmount = canTrackPointer ? 0.18 : 0.55;
+        target.x = baseRotation.x + Math.sin(orbit) * safeTilt * fallbackAmount;
+        target.y = baseRotation.y + Math.cos(orbit * 0.85) * safeTilt * fallbackAmount;
+      }
+      current.x += (target.x - current.x) * safeSmoothing;
+      current.y += (target.y - current.y) * safeSmoothing;
+      applyTransform();
+      requestAnimationFrame(tick);
+    }
+
+    applyTransform();
+    requestAnimationFrame(tick);
+  }
+
+  createDepthText(document.getElementById('dt'), {
+    text: 'Jarvis',
+    layers: 34,
+    depth: 2.4,
+    faceColor: '#f8fafc',
+    depthColor: '#7c3aed',
+    tilt: 7.5,
+    pointerTracking: true,
+    smoothing: 0.14,
+    perspective: 900,
+    autoOrbit: true,
+    orbitSpeed: 0.35,
+    fontSize: 'clamp(3rem, 12vw, 7rem)',
+    fontWeight: 900,
+    shadow: true
+  });
+})();
+</script>
+</body>
+</html>

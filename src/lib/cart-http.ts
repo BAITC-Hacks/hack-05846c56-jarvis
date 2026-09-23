@@ -1,0 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { CartError, decodeCart, newCart, sign, type StoredCart } from './cart';
+export const CART_COOKIE='jarvis_cart'; export const PENDING_COOKIE='jarvis_pending';
+export function readCart(req:NextRequest){return decodeCart(req.cookies.get(CART_COOKIE)?.value)??newCart();}
+export function writeCart(res:NextResponse,cart:StoredCart){res.cookies.set(CART_COOKIE,sign(cart),{httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:7*24*3600});res.headers.set('Cache-Control','no-store');return res;}
+export function ensureOrigin(req:NextRequest){const origin=req.headers.get('origin');if((origin&&new URL(origin).host!==req.headers.get('host'))||req.headers.get('sec-fetch-site')==='cross-site')throw new CartError('Недопустимый источник запроса / Сұрау көзі жарамсыз',403);if(!req.headers.get('content-type')?.includes('application/json'))throw new CartError('Ожидается JSON',415);if(Number(req.headers.get('content-length')??0)>20000)throw new CartError('Запрос слишком большой',413);}
+export function cartFailure(error:unknown){if(error instanceof CartError)return NextResponse.json({error:error.message,code:error.code},{status:error.status,headers:{'Cache-Control':'no-store'}});console.error('Cart request failed:',error instanceof Error?error.name:'Unknown');return NextResponse.json({error:'Не удалось обновить корзину. Повторите / Себетті жаңарту мүмкін болмады'},{status:503});}

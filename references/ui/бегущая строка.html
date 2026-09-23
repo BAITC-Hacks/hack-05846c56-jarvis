@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScrollVelocity — бегущая строка</title>
+<style>
+  :root{
+    --bg:#0b0b0d; --fg:#f3f1ec; --muted:#8a8a92;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:inherit}
+  html{scroll-padding-top:env(safe-area-inset-top,0px)}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+    min-height:100%;
+  }
+  header{ padding:4rem 1.5rem 2rem; text-align:center }
+  header h1{font-size:1.3rem; font-weight:600; margin:0 0 .5rem}
+  header p{color:var(--muted); max-width:38ch; margin:0 auto; line-height:1.5; font-size:.95rem}
+
+  section.pad{ padding:5rem 1.5rem; max-width:60ch; margin:0 auto; color:var(--muted); line-height:1.7; font-size:.95rem}
+
+  .parallax{ position:relative; overflow:hidden; padding:.4rem 0 }
+  .scroller{
+    display:flex; white-space:nowrap; font-size:2.25rem; font-weight:700;
+    letter-spacing:-0.02em; filter:drop-shadow(0 1px 1px rgba(0,0,0,.3));
+  }
+  .scroller span{flex-shrink:0; padding-right:.4em}
+  @media (min-width:768px){ .scroller{font-size:4rem} }
+
+  footer{ padding:4rem 1.5rem 6rem; text-align:center; color:var(--muted); font-size:.85rem }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ScrollVelocity</h1>
+  <p>Бегущая строка, скорость и направление которой реагируют на скорость скролла страницы.</p>
+</header>
+
+<section class="pad">Прокрутите вниз/вверх, быстро и медленно — строки ниже ускоряются, замедляются и меняют направление в ответ.</section>
+
+<div id="marquee1" class="parallax"></div>
+<div id="marquee2" class="parallax"></div>
+
+<section class="pad">Каждая строка — это набор повторяющихся копий текста, сдвигаемых через <code>transform: translateX()</code> в цикле <code>requestAnimationFrame</code>, со сглаженной (пружинной) скоростью, посчитанной из дельты скролла.</section>
+
+<footer>Ванильная версия — без React и без библиотеки motion</footer>
+
+<script>
+(function(){
+  function makeRow(mount, text, baseVelocity, numCopies){
+    const parallax=document.createElement('div');
+    parallax.className='parallax';
+    const scroller=document.createElement('div');
+    scroller.className='scroller';
+    parallax.appendChild(scroller);
+    mount.appendChild(parallax);
+
+    const spans=[];
+    for(let i=0;i<numCopies;i++){
+      const span=document.createElement('span');
+      span.textContent=text+'\u00A0';
+      scroller.appendChild(span);
+      spans.push(span);
+    }
+    let copyWidth=spans[0].offsetWidth;
+    window.addEventListener('resize',()=>{ copyWidth=spans[0].offsetWidth; });
+
+    let x=0;
+    let direction=baseVelocity<0?-1:1;
+    const speed=Math.abs(baseVelocity);
+
+    let lastScrollY=window.scrollY, lastT=performance.now();
+    let rawVelocity=0, smoothVelocity=0, velocityFactor=0;
+    const damping=50, stiffness=400;
+
+    window.addEventListener('scroll',()=>{
+      const now=performance.now();
+      const dt=Math.max(1,now-lastT);
+      rawVelocity=(window.scrollY-lastScrollY)/(dt/1000);
+      lastScrollY=window.scrollY; lastT=now;
+    });
+
+    function wrap(min,max,v){ const range=max-min; return (((v-min)%range)+range)%range+min; }
+
+    function tick(delta){
+      const dt=Math.min(delta,50)/1000;
+      const forceConst=stiffness;
+      const accel=(forceConst*(rawVelocity-smoothVelocity))*dt;
+      smoothVelocity+=accel*dt*10;
+      smoothVelocity+=(rawVelocity-smoothVelocity)*Math.min(1,dt*6);
+      rawVelocity*=0.9;
+
+      velocityFactor=Math.max(-5,Math.min(5,smoothVelocity/1000*5));
+
+      let moveBy=direction*speed*dt;
+      if(velocityFactor<0) direction=-1; else if(velocityFactor>0) direction=1;
+      moveBy+=direction*moveBy*velocityFactor;
+      x+=moveBy;
+
+      const px = copyWidth ? wrap(-copyWidth,0,x) : 0;
+      scroller.style.transform=`translateX(${px}px)`;
+    }
+    return tick;
+  }
+
+  const ticks=[
+    makeRow(document.getElementById('marquee1'),'SMOOTH SCROLL VELOCITY',100,6),
+    makeRow(document.getElementById('marquee2'),'RUNNING TEXT DEMO',-100,6)
+  ];
+
+  let last=performance.now();
+  function loop(t){
+    const delta=t-last; last=t;
+    ticks.forEach(fn=>fn(delta));
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

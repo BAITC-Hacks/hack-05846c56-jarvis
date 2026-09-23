@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scroll Reveal</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    margin: 0;
+    background: #0b0b0d;
+    color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  body {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+
+  .spacer {
+    height: 55vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.3);
+    font-size: 14px;
+    letter-spacing: 0.05em;
+  }
+
+  .section {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 6vw;
+  }
+
+  .scroll-reveal {
+    margin: 20px 0;
+  }
+
+  .scroll-reveal-text {
+    font-size: clamp(1.6rem, 4vw, 3rem);
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .word {
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<div class="spacer">прокрути вниз ↓</div>
+
+<div class="section">
+  <h2 id="sr1" class="scroll-reveal">
+    <p class="scroll-reveal-text"></p>
+  </h2>
+</div>
+
+<div class="spacer">↓</div>
+
+<div class="section">
+  <h2 id="sr2" class="scroll-reveal">
+    <p class="scroll-reveal-text"></p>
+  </h2>
+</div>
+
+<div class="spacer">конец</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script>
+(function () {
+  if (typeof gsap === 'undefined') {
+    console.error('GSAP failed to load');
+    return;
+  }
+  gsap.registerPlugin(ScrollTrigger);
+
+  function initScrollReveal(el, text, options) {
+    const props = Object.assign({
+      enableBlur: true,
+      baseOpacity: 0.1,
+      baseRotation: 3,
+      blurStrength: 4,
+      rotationEnd: 'bottom bottom',
+      wordAnimationEnd: 'bottom bottom'
+    }, options);
+
+    const textEl = el.querySelector('.scroll-reveal-text');
+    textEl.innerHTML = text
+      .split(/(\s+)/)
+      .map((word) => (word.match(/^\s+$/) ? word : `<span class="word">${word}</span>`))
+      .join('');
+
+    gsap.fromTo(
+      el,
+      { transformOrigin: '0% 50%', rotate: props.baseRotation },
+      {
+        ease: 'none',
+        rotate: 0,
+        scrollTrigger: {
+          trigger: el,
+          scroller: window,
+          start: 'top bottom',
+          end: props.rotationEnd,
+          scrub: true
+        }
+      }
+    );
+
+    const wordElements = el.querySelectorAll('.word');
+
+    gsap.fromTo(
+      wordElements,
+      { opacity: props.baseOpacity, willChange: 'opacity' },
+      {
+        ease: 'none',
+        opacity: 1,
+        stagger: 0.05,
+        scrollTrigger: {
+          trigger: el,
+          scroller: window,
+          start: 'top bottom-=20%',
+          end: props.wordAnimationEnd,
+          scrub: true
+        }
+      }
+    );
+
+    if (props.enableBlur) {
+      gsap.fromTo(
+        wordElements,
+        { filter: `blur(${props.blurStrength}px)` },
+        {
+          ease: 'none',
+          filter: 'blur(0px)',
+          stagger: 0.05,
+          scrollTrigger: {
+            trigger: el,
+            scroller: window,
+            start: 'top bottom-=20%',
+            end: props.wordAnimationEnd,
+            scrub: true
+          }
+        }
+      );
+    }
+  }
+
+  initScrollReveal(
+    document.getElementById('sr1'),
+    'When does a man die? When he is hit by a bullet? No! When he suffers a disease? No! When he ate a soup made out of a poisonous mushroom? No! A man dies when he is forgotten!',
+    { baseOpacity: 0, enableBlur: true, baseRotation: 5, blurStrength: 10 }
+  );
+
+  initScrollReveal(
+    document.getElementById('sr2'),
+    'Каждое слово проявляется по мере прокрутки страницы, а контейнер плавно выравнивается из небольшого наклона.',
+    { baseOpacity: 0.15, enableBlur: true, baseRotation: 3, blurStrength: 6 }
+  );
+})();
+</script>
+</body>
+</html>

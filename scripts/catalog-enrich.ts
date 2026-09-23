@@ -1,0 +1,5 @@
+import fs from 'node:fs';
+import {searchLocal} from '../src/lib/catalog';
+async function main(){const saved=JSON.parse(fs.readFileSync('data/catalog-snapshot.json','utf8').replace(/^\uFEFF/,''));const existing=new Set(saved.items.map((x:{id:number})=>String(x.id)));const list=[...new Map(['автомат 16А','автомат 32А','автомат 10А','автомат 25А','автомат 40А','автомат 63А'].flatMap(q=>searchLocal(q,{limit:60})).map(p=>[p.id,p])).values()].filter(p=>!existing.has(p.id));console.log('enrich',list.length);const base=process.env.EKT_API_URL!.replace(/\/$/,'');const headers={Authorization:'Basic '+Buffer.from(`${process.env.EKT_API_USERNAME}:${process.env.EKT_API_PASSWORD}`).toString('base64')};let c=0;await Promise.all(Array.from({length:4},async()=>{while(c<list.length){const p=list[c++];try{const r=await fetch(base+'/products/detail?id='+p.id,{headers,signal:AbortSignal.timeout(20000)});if(r.ok){saved.items.push({...await r.json(),_fetchedAt:new Date().toISOString()});}}catch{}}}));fs.writeFileSync('data/catalog-snapshot.json',JSON.stringify(saved,null,2));console.log('saved',saved.items.length);}
+main();
+

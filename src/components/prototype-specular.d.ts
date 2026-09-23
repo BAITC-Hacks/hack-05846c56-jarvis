@@ -1,0 +1,1 @@
+export function createSpecularButton(button: HTMLButtonElement, fx: HTMLSpanElement, options?: { radius?:number; lineColor?:string; baseColor?:string; intensity?:number; shineSize?:number; shineFade?:number; thickness?:number; speed?:number; followMouse?:boolean; proximity?:number; autoAnimate?:boolean }): () => void;

@@ -1,0 +1,6 @@
+.env*
+.catalog-*.json
+tmp/
+tests/
+test-results/
+playwright-report/

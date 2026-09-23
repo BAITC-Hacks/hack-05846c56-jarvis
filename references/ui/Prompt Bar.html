@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prompt Bar</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: #0b0b0d;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .prompt-bar {
+    --pb-bg: #27272a;
+    --pb-ink: #f5f5f5;
+    --pb-menu: #323236;
+    --pb-w: 420px;
+    --pb-radius: 16px;
+    --pb-press: 0.96;
+    --pb-spark: #b39dff;
+    --pb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --pb-muted: color-mix(in srgb, var(--pb-ink) 55%, transparent);
+    --pb-hover: color-mix(in srgb, var(--pb-ink) 8%, transparent);
+    position: relative;
+    width: min(var(--pb-w), 100%);
+    color: var(--pb-ink);
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+  .prompt-bar__menu {
+    position: absolute;
+    right: 0; left: 0; bottom: calc(100% + 8px);
+    z-index: 2;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--pb-menu);
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.08);
+    animation: pb-pop 180ms var(--pb-ease-out) both;
+    display: none;
+  }
+  .prompt-bar__menu.open { display: block; }
+  .prompt-bar__menu[data-kind='model'] { right: auto; width: 200px; }
+  .prompt-bar__menu[data-kind='effort'] { right: auto; width: 250px; padding: 12px 14px 14px; }
+  @keyframes pb-pop { from { opacity: 0; transform: translateY(4px) scale(.98);} }
+
+  .prompt-bar__row {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; height: 36px; padding: 0 8px;
+    border: 0; border-radius: 8px; background: transparent;
+    color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .prompt-bar__row:hover, .prompt-bar__row.active { background: var(--pb-hover); }
+  .prompt-bar__row-icon { display: inline-flex; flex: none; width: 20px; justify-content: center; color: color-mix(in srgb, var(--pb-ink) 70%, transparent); }
+  .prompt-bar__row-name { flex: none; font-size: 13px; font-weight: 500; }
+  .prompt-bar__row-desc { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--pb-muted); font-size: 12px; }
+  .prompt-bar__row-tag { flex: none; margin-left: auto; color: var(--pb-muted); font-size: 11px; }
+  .prompt-bar__row-check { display: inline-flex; flex: none; width: 16px; justify-content: center; opacity: 0; }
+  .prompt-bar__row-check.on { opacity: 1; }
+  .prompt-bar__empty { display: flex; align-items: center; height: 36px; padding: 0 8px; color: var(--pb-muted); font-size: 12px; }
+
+  .prompt-bar__effort-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .prompt-bar__effort-title { color: var(--pb-muted); }
+  .prompt-bar__effort-level { font-weight: 500; }
+  .prompt-bar__effort-help { margin-left: auto; color: var(--pb-muted); }
+  .prompt-bar__effort-ends { display: flex; justify-content: space-between; margin-top: 12px; color: var(--pb-muted); font-size: 12px; }
+  .prompt-bar__effort-track { position: relative; height: 22px; margin-top: 8px; border-radius: 11px; background: var(--pb-hover); cursor: pointer; touch-action: none; }
+  .prompt-bar__effort-fill { position: absolute; top:0; bottom:0; left:0; width: var(--pb-fill, 0%); border-radius: 11px; background: color-mix(in srgb, var(--pb-ink) 18%, transparent); transition: width 220ms var(--pb-ease-out), background-color 300ms ease; }
+  .prompt-bar__effort-dot { position: absolute; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: color-mix(in srgb, var(--pb-ink) 30%, transparent); }
+  .prompt-bar__effort-thumb { position: absolute; top: -3px; left: var(--pb-x, 0%); width: 14px; height: 28px; margin-left: -7px; border-radius: 7px; background: var(--pb-ink); box-shadow: 0 2px 6px rgba(0,0,0,.25); transition: left 220ms var(--pb-ease-out), background-color 300ms ease; }
+  .prompt-bar.maxed .prompt-bar__effort-fill { background: color-mix(in srgb, var(--pb-spark) 35%, transparent); }
+  .prompt-bar.maxed .prompt-bar__effort-thumb { background: var(--pb-spark); }
+
+  .prompt-bar__field { position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: var(--pb-radius); background: var(--pb-bg); cursor: text; }
+  .prompt-bar__field::before { content:''; position:absolute; inset:0; z-index:-1; border-radius: inherit; background: radial-gradient(140% 120% at 0% 100%, color-mix(in srgb, var(--pb-spark) 26%, transparent), transparent 62%); opacity: 0; transition: opacity 500ms ease; }
+  .prompt-bar.maxed .prompt-bar__field::before { opacity: 1; }
+  .prompt-bar__sparks { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; border-radius: inherit; pointer-events: none; }
+
+  .prompt-bar__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .prompt-bar__chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 8px; border-radius: 8px; background: var(--pb-hover); font-size: 12px; animation: pb-pop 200ms var(--pb-ease-out) both; }
+  .prompt-bar__chip-name { max-width: 144px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .prompt-bar__chip-x { display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: inherit; opacity: .6; cursor: pointer; }
+  .prompt-bar__chip-x:hover { background: color-mix(in srgb, var(--pb-ink) 10%, transparent); opacity: 1; }
+
+  .prompt-bar__input { display: block; width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; resize: none; outline: none; overflow-wrap: anywhere; }
+  .prompt-bar__input::placeholder { color: color-mix(in srgb, var(--pb-ink) 45%, transparent); }
+
+  .prompt-bar__bar { display: flex; align-items: center; gap: 4px; }
+  .prompt-bar__spacer { flex: 1; }
+  .prompt-bar__tool, .prompt-bar__pick, .prompt-bar__send { flex: none; border: 0; font: inherit; cursor: pointer; outline: none; }
+  .prompt-bar__tool { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: transparent; color: color-mix(in srgb, var(--pb-ink) 60%, transparent); transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--pb-ease-out); }
+  .prompt-bar__tool:active { transform: scale(.94); }
+  .prompt-bar__pick { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 8px; background: transparent; color: color-mix(in srgb, var(--pb-ink) 70%, transparent); font-size: 12px; font-weight: 500; }
+  .prompt-bar__tool.on, .prompt-bar__pick.on { background: var(--pb-hover); color: var(--pb-ink); }
+  .prompt-bar__tool:hover, .prompt-bar__pick:hover { background: var(--pb-hover); color: var(--pb-ink); }
+  .prompt-bar__pick.max { color: var(--pb-spark); }
+
+  .prompt-bar__eq { display: flex; align-items: center; gap: 2.5px; height: 14px; }
+  .prompt-bar__eq i { display: block; width: 2.5px; height: 100%; border-radius: 999px; background: currentColor; animation: pb-eq 900ms ease-in-out infinite; }
+  .prompt-bar__eq i:nth-child(2) { animation-delay: 150ms; }
+  .prompt-bar__eq i:nth-child(3) { animation-delay: 300ms; }
+  @keyframes pb-eq { 0%,100% { transform: scaleY(.35);} 50% { transform: scaleY(1);} }
+
+  .prompt-bar__send { position: relative; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: color-mix(in srgb, var(--pb-ink) 12%, var(--pb-bg)); color: color-mix(in srgb, var(--pb-ink) 55%, var(--pb-bg)); transition: background-color 200ms ease, color 200ms ease, transform 160ms var(--pb-ease-out); }
+  .prompt-bar__send:disabled { cursor: default; }
+  .prompt-bar__send.armed { background: var(--pb-ink); color: var(--pb-bg); }
+  .prompt-bar__send.pressed { transform: scale(var(--pb-press)); }
+  .prompt-bar__glyph { display: block; width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="prompt-bar" id="pb">
+  <div class="prompt-bar__menu" id="pbMenu"></div>
+  <div class="prompt-bar__field" id="pbField">
+    <canvas class="prompt-bar__sparks" id="pbSparks"></canvas>
+    <div class="prompt-bar__chips" id="pbChips" style="display:none;"></div>
+    <textarea class="prompt-bar__input" id="pbInput" rows="1" placeholder="Ask anything"></textarea>
+    <div class="prompt-bar__bar">
+      <button type="button" class="prompt-bar__tool" id="pbPlus" aria-label="Add files and sources">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button type="button" class="prompt-bar__pick" id="pbModel" aria-label="Choose model">
+        <span id="pbModelName">Nova 3</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <button type="button" class="prompt-bar__pick" id="pbEffort" aria-label="Choose effort">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 6.8L21 11l-6.6 2.2L12 20l-2.4-6.8L3 11l6.6-2.2z"/></svg>
+        <span id="pbEffortName">High</span>
+      </button>
+      <span class="prompt-bar__spacer"></span>
+      <button type="button" class="prompt-bar__tool" id="pbMic" aria-label="Dictate">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+      </button>
+      <button type="button" class="prompt-bar__send" id="pbSend" disabled aria-label="Send">
+        <svg id="pbSendIcon" class="prompt-bar__glyph" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+          <path d="M12 4.5L18.5 11L14.25 11L14.25 19.5L9.75 19.5L9.75 11L5.5 11Z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const SOURCES = [
+    { key: 'files', name: 'Photos & files', description: 'Upload from this device', attach: true, icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><path d="M7 8l5-5 5 5M12 3v13"/></svg>' },
+    { key: 'web', name: 'Web search', description: 'Live results', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>' },
+    { key: 'sales', name: 'Sales data', description: 'Revenue and churn', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg>' },
+    { key: 'docs', name: 'Documents', description: 'Specs, notes, briefs', icon: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>' }
+  ];
+  const COMMANDS = [
+    { key: 'summarize', name: '/summarize', description: 'Digest the thread so far' },
+    { key: 'compare', name: '/compare', description: 'Two options side by side' },
+    { key: 'draft', name: '/draft', description: 'Write a first version' }
+  ];
+  const MODELS = [
+    { key: 'nova-3', name: 'Nova 3', tag: 'Flagship' },
+    { key: 'nova-mini', name: 'Nova Mini', tag: 'Fast' }
+  ];
+  const EFFORTS = ['Low', 'Medium', 'High', 'Extra', 'Max'];
+  const LINE = 22, EDGE = 11;
+
+  const pb = document.getElementById('pb');
+  const field = document.getElementById('pbField');
+  const menu = document.getElementById('pbMenu');
+  const input = document.getElementById('pbInput');
+  const chipsEl = document.getElementById('pbChips');
+  const sparksCanvas = document.getElementById('pbSparks');
+  const plusBtn = document.getElementById('pbPlus');
+  const modelBtn = document.getElementById('pbModel');
+  const modelName = document.getElementById('pbModelName');
+  const effortBtn = document.getElementById('pbEffort');
+  const effortName = document.getElementById('pbEffortName');
+  const micBtn = document.getElementById('pbMic');
+  const sendBtn = document.getElementById('pbSend');
+  const sendIcon = document.getElementById('pbSendIcon');
+
+  let draft = '';
+  let attachments = [];
+  let modelIdx = 0;
+  let effortIdx = 2;
+  let plusOpen = false, modelOpen = false, effortOpen = false;
+  let busy = false, listening = false, dismissed = false;
+  let cursorIdx = 0;
+
+  function parseToken(d) {
+    const m = /(^|\s)([@/])([\w-]*)$/.exec(d);
+    if (!m) return null;
+    return { kind: m[2] === '@' ? 'at' : 'slash', query: m[3].toLowerCase(), start: m.index + m[1].length };
+  }
+
+  function currentList() {
+    const token = dismissed ? null : parseToken(draft);
+    if (plusOpen) return { kind: 'at', list: SOURCES, token: null };
+    if (token) {
+      if (token.kind === 'at') return { kind: 'at', list: SOURCES.filter(s => s.name.toLowerCase().includes(token.query)), token };
+      return { kind: 'slash', list: COMMANDS.filter(c => c.name.replace(/^\//, '').toLowerCase().startsWith(token.query)), token };
+    }
+    if (modelOpen) return { kind: 'model', list: MODELS, token: null };
+    return { kind: null, list: [], token: null };
+  }
+
+  function renderMenu() {
+    if (effortOpen) {
+      menu.dataset.kind = 'effort';
+      menu.classList.add('open');
+      const fillPct = effortIdx === EFFORTS.length - 1 ? 100 : (effortIdx / (EFFORTS.length - 1)) * 100 + 3;
+      const xPct = (effortIdx / (EFFORTS.length - 1)) * 100;
+      menu.innerHTML = `
+        <div class="prompt-bar__effort-head">
+          <span class="prompt-bar__effort-title">Effort</span>
+          <span class="prompt-bar__effort-level">${EFFORTS[effortIdx]}</span>
+          <span class="prompt-bar__effort-help">?</span>
+        </div>
+        <div class="prompt-bar__effort-ends"><span>Faster</span><span>Smarter</span></div>
+        <div class="prompt-bar__effort-track" id="effTrack" style="--pb-fill:${fillPct}%; --pb-x:${xPct}%;">
+          <span class="prompt-bar__effort-fill"></span>
+          ${EFFORTS.map((_, i) => `<i class="prompt-bar__effort-dot" style="left:${(i/(EFFORTS.length-1))*100}%"></i>`).join('')}
+          <span class="prompt-bar__effort-thumb"></span>
+        </div>`;
+      const track = document.getElementById('effTrack');
+      track.addEventListener('pointerdown', (e) => {
+        track.setPointerCapture(e.pointerId);
+        effortFromPointer(e, track);
+        track.onpointermove = (ev) => { if (ev.buttons & 1) effortFromPointer(ev, track); };
+      });
+      track.addEventListener('pointerup', () => { track.onpointermove = null; });
+      return;
+    }
+    const { kind, list, token } = currentList();
+    if (!kind || (!plusOpen && !token && !modelOpen)) {
+      menu.classList.remove('open');
+      return;
+    }
+    menu.dataset.kind = kind;
+    menu.classList.add('open');
+    cursorIdx = Math.min(cursorIdx, Math.max(0, list.length - 1));
+    if (list.length === 0) {
+      menu.innerHTML = `<div class="prompt-bar__empty">Совпадений нет</div>`;
+      return;
+    }
+    menu.innerHTML = list.map((row, i) => {
+      const icon = kind === 'at' ? `<span class="prompt-bar__row-icon">${row.icon || ''}</span>` : '';
+      const tag = kind === 'model' ? `<span class="prompt-bar__row-tag">${row.tag}</span><span class="prompt-bar__row-check ${i === modelIdx ? 'on' : ''}">✓</span>` : '';
+      const desc = row.description ? `<span class="prompt-bar__row-desc">${row.description}</span>` : '';
+      return `<button type="button" class="prompt-bar__row ${i === cursorIdx ? 'active' : ''}" data-i="${i}">${icon}<span class="prompt-bar__row-name">${row.name}</span>${desc}${tag}</button>`;
+    }).join('');
+    menu.querySelectorAll('.prompt-bar__row').forEach((rowEl) => {
+      const i = Number(rowEl.dataset.i);
+      rowEl.addEventListener('mousedown', (e) => e.preventDefault());
+      rowEl.addEventListener('mouseenter', () => { cursorIdx = i; renderMenu(); });
+      rowEl.addEventListener('click', () => pick(list[i], kind, token));
+    });
+  }
+
+  function effortFromPointer(e, track) {
+    const rect = track.getBoundingClientRect();
+    const k = (e.clientX - rect.left - EDGE) / Math.max(1, rect.width - 2 * EDGE);
+    setEffort(Math.round(k * (EFFORTS.length - 1)));
+  }
+
+  function setEffort(i) {
+    effortIdx = Math.max(0, Math.min(EFFORTS.length - 1, i));
+    effortName.textContent = EFFORTS[effortIdx];
+    pb.classList.toggle('maxed', effortIdx === EFFORTS.length - 1);
+    effortBtn.classList.toggle('max', effortIdx === EFFORTS.length - 1);
+    renderMenu();
+  }
+
+  function pick(row, kind, token) {
+    if (kind === 'model') {
+      modelIdx = MODELS.indexOf(row);
+      modelName.textContent = row.name;
+      modelOpen = false;
+      renderMenu();
+      input.focus();
+      return;
+    }
+    const head = token ? draft.slice(0, token.start) : draft;
+    if (row.attach) {
+      draft = head;
+      attachments.push('example-file.pdf');
+      renderChips();
+    } else if (kind === 'at') {
+      draft = `${head}@${row.name} `;
+    } else {
+      draft = `${head}${row.name} `;
+    }
+    input.value = draft;
+    plusOpen = false;
+    dismissed = false;
+    autoResize();
+    updateSend();
+    renderMenu();
+    input.focus();
+  }
+
+  function renderChips() {
+    if (attachments.length === 0) { chipsEl.style.display = 'none'; chipsEl.innerHTML = ''; return; }
+    chipsEl.style.display = 'flex';
+    chipsEl.innerHTML = attachments.map((f, i) => `
+      <span class="prompt-bar__chip">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+        <span class="prompt-bar__chip-name">${f}</span>
+        <button type="button" class="prompt-bar__chip-x" data-i="${i}">✕</button>
+      </span>`).join('');
+    chipsEl.querySelectorAll('.prompt-bar__chip-x').forEach((btn) => {
+      btn.addEventListener('click', () => { attachments.splice(Number(btn.dataset.i), 1); renderChips(); updateSend(); });
+    });
+  }
+
+  function autoResize() {
+    input.style.height = '0px';
+    const max = LINE * 5;
+    input.style.height = Math.min(input.scrollHeight, max) + 'px';
+    input.style.overflowY = input.scrollHeight > max ? 'auto' : 'hidden';
+  }
+
+  function updateSend() {
+    const canSend = draft.trim().length > 0 || attachments.length > 0;
+    const armed = busy || canSend;
+    sendBtn.disabled = !armed;
+    sendBtn.classList.toggle('armed', armed);
+  }
+
+  function closeMenus() { plusOpen = false; modelOpen = false; effortOpen = false; renderMenu(); }
+
+  const ARROW_UP = [12,4.5, 18.5,11, 14.25,11, 14.25,19.5, 9.75,19.5, 9.75,11, 5.5,11];
+  const SQUARE = [12,6, 18,6, 18,12, 18,18, 6,18, 6,12, 6,6];
+  function pathAt(a, b, t) {
+    let d = '';
+    for (let i = 0; i < a.length; i += 2) {
+      d += `${i ? 'L' : 'M'}${(a[i] + (b[i]-a[i])*t).toFixed(2)} ${(a[i+1] + (b[i+1]-a[i+1])*t).toFixed(2)}`;
+    }
+    return d + 'Z';
+  }
+  function setBusy(v) {
+    busy = v;
+    const start = performance.now();
+    const from = v ? 0 : 1;
+    const dur = 240;
+    function step(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = t < 0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+      const val = v ? eased : 1 - eased;
+      sendIcon.querySelector('path').setAttribute('d', pathAt(ARROW_UP, SQUARE, val));
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    updateSend();
+  }
+
+  function send() {
+    const canSend = draft.trim().length > 0 || attachments.length > 0;
+    if (!canSend || busy) return;
+    console.log('send', draft.trim(), attachments, MODELS[modelIdx], EFFORTS[effortIdx]);
+    setBusy(true);
+    setTimeout(() => setBusy(false), 1600);
+    draft = ''; input.value = '';
+    attachments = []; renderChips();
+    dismissed = false;
+    autoResize();
+    closeMenus();
+    updateSend();
+    input.focus();
+  }
+
+  input.addEventListener('input', () => {
+    draft = input.value;
+    dismissed = false;
+    plusOpen = false; modelOpen = false; effortOpen = false;
+    cursorIdx = 0;
+    autoResize();
+    updateSend();
+    renderMenu();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    const { kind, list } = currentList();
+    if (!effortOpen && kind && list.length) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        cursorIdx = (cursorIdx + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length;
+        renderMenu();
+        return;
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        e.preventDefault();
+        const { token } = currentList();
+        pick(list[cursorIdx], kind, token);
+        return;
+      }
+    }
+    if (e.key === 'Escape') {
+      if (menu.classList.contains('open')) { e.preventDefault(); dismissed = true; closeMenus(); }
+      return;
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  input.addEventListener('focus', closeMenus);
+
+  field.addEventListener('click', (e) => { if (e.target === field) input.focus(); });
+
+  plusBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  plusBtn.addEventListener('click', () => {
+    modelOpen = false; effortOpen = false;
+    plusOpen = !plusOpen; cursorIdx = 0;
+    plusBtn.classList.toggle('on', plusOpen);
+    renderMenu();
+    input.focus();
+  });
+
+  modelBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  modelBtn.addEventListener('click', () => {
+    plusOpen = false; effortOpen = false;
+    modelOpen = !modelOpen; cursorIdx = modelIdx;
+    modelBtn.classList.toggle('on', modelOpen);
+    renderMenu();
+    input.focus();
+  });
+
+  effortBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  effortBtn.addEventListener('click', () => {
+    plusOpen = false; modelOpen = false;
+    effortOpen = !effortOpen;
+    effortBtn.classList.toggle('on', effortOpen);
+    renderMenu();
+    input.focus();
+  });
+
+  let dictationSeq = 0;
+  micBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  micBtn.addEventListener('click', () => {
+    if (listening) {
+      dictationSeq++;
+      listening = false;
+      micBtn.classList.remove('on');
+      micBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+      return;
+    }
+    const seq = ++dictationSeq;
+    listening = true;
+    micBtn.classList.add('on');
+    micBtn.innerHTML = '<span class="prompt-bar__eq"><i></i><i></i><i></i></span>';
+    input.placeholder = 'Listening…';
+    setTimeout(() => {
+      if (seq !== dictationSeq) return;
+      listening = false;
+      micBtn.classList.remove('on');
+      micBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="19" x2="12" y2="22"/></svg>';
+      input.placeholder = 'Ask anything';
+      const text = 'расскажи подробнее об этом';
+      draft = draft.trim() ? draft.trimEnd() + ' ' + text : text;
+      input.value = draft;
+      autoResize();
+      updateSend();
+      input.focus();
+    }, 1500);
+  });
+
+  sendBtn.addEventListener('mousedown', (e) => e.preventDefault());
+  let pressTimer = null;
+  sendBtn.addEventListener('pointerdown', () => { if (!sendBtn.disabled) sendBtn.classList.add('pressed'); });
+  sendBtn.addEventListener('pointerup', () => sendBtn.classList.remove('pressed'));
+  sendBtn.addEventListener('pointerleave', () => sendBtn.classList.remove('pressed'));
+  sendBtn.addEventListener('click', () => { if (busy) { setBusy(false); } else send(); });
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!pb.contains(e.target) && (plusOpen || modelOpen || effortOpen)) {
+      plusOpen = false; modelOpen = false; effortOpen = false;
+      plusBtn.classList.remove('on'); modelBtn.classList.remove('on'); effortBtn.classList.remove('on');
+      renderMenu();
+    }
+  });
+
+  // Spark particles when effort is at Max
+  const sctx = sparksCanvas.getContext('2d');
+  let sparkParts = [];
+  let sparkRaf = 0;
+  function resizeSparks() {
+    const rect = sparksCanvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    sparksCanvas.width = Math.round(rect.width * dpr);
+    sparksCanvas.height = Math.round(rect.height * dpr);
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function spawnSpark(w, h, burst) {
+    sparkParts.push({
+      x: Math.random() * w,
+      y: burst ? h * (0.2 + Math.random()*0.8) : h + 3,
+      r: 0.9 + Math.random()*1.1,
+      vy: -(7 + Math.random()*9),
+      sway: (Math.random()-0.5)*10,
+      phase: Math.random()*Math.PI*2,
+      life: burst ? Math.random()*1.2 : 0,
+      span: 2.4 + Math.random()*2.4
+    });
+  }
+  let sparkLast = performance.now();
+  let sparkDue = 0;
+  function sparkTick(now) {
+    sparkRaf = requestAnimationFrame(sparkTick);
+    if (effortIdx !== EFFORTS.length - 1) {
+      if (sparkParts.length) { sparkParts = []; sctx.clearRect(0,0,sparksCanvas.width,sparksCanvas.height); }
+      return;
+    }
+    const rect = sparksCanvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    const dt = Math.min(0.05, (now - sparkLast)/1000);
+    sparkLast = now;
+    sparkDue += dt;
+    while (sparkDue > 0.14) { sparkDue -= 0.14; if (sparkParts.length < 30) spawnSpark(w, h, false); }
+    sctx.clearRect(0, 0, w, h);
+    sctx.fillStyle = '#b39dff';
+    sctx.shadowColor = '#b39dff';
+    sctx.shadowBlur = 8;
+    for (let i = sparkParts.length - 1; i >= 0; i--) {
+      const p = sparkParts[i];
+      p.life += dt;
+      if (p.life > p.span) { sparkParts.splice(i,1); continue; }
+      const k = p.life / p.span;
+      const twinkle = 0.7 + 0.3*Math.sin((now/160) + p.phase);
+      p.y += p.vy * dt;
+      if (p.y < -4) { p.y = h + 3; p.x = Math.random()*w; }
+      const edge = Math.min(1, Math.max(0, p.y/14), Math.max(0, (h-p.y)/14));
+      sctx.globalAlpha = Math.min(1, Math.sin(k*Math.PI)*0.9*twinkle) * edge;
+      sctx.beginPath();
+      sctx.arc(p.x + Math.sin(now/900 + p.phase)*p.sway, p.y, p.r*twinkle, 0, Math.PI*2);
+      sctx.fill();
+    }
+    sctx.globalAlpha = 1;
+  }
+  resizeSparks();
+  new ResizeObserver(resizeSparks).observe(sparksCanvas);
+  sparkRaf = requestAnimationFrame(sparkTick);
+
+  // init
+  effortName.textContent = EFFORTS[effortIdx];
+  modelName.textContent = MODELS[modelIdx].name;
+  autoResize();
+  updateSend();
+})();
+</script>
+</body>
+</html>

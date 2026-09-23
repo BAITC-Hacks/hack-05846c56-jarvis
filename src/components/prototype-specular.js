@@ -1,0 +1,232 @@
+// Direct, unchanged WebGL2 shader and button factory from ../get started button.html.
+  const PAD = 20;
+
+  const VERT = `#version 300 es
+in vec2 position;
+void main() {
+  gl_Position = vec4(position, 0.0, 1.0);
+}
+`;
+
+  const FRAG = `#version 300 es
+precision highp float;
+
+uniform vec2 uCenter;
+uniform vec2 uHalfSize;
+uniform float uRadius;
+uniform float uAngle;
+uniform float uPx;
+uniform vec3 uLineColor;
+uniform vec3 uBaseColor;
+uniform float uIntensity;
+uniform float uShineSize;
+uniform float uShineFade;
+uniform float uThickness;
+uniform float uBaseWidth;
+
+out vec4 fragColor;
+
+float sdRoundedRect(vec2 p, vec2 b, float r) {
+  vec2 q = abs(p) - b + r;
+  return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+float shapeSDF(vec2 p) { return sdRoundedRect(p, uHalfSize, uRadius); }
+
+float gaussianLine(float d, float sigma) {
+  float x = d / (sigma + 1e-6);
+  float k = mix(1.0, 1.6, smoothstep(0.0, 1.5, x));
+  return exp(-k * x * x);
+}
+
+void main() {
+  vec2 p = gl_FragCoord.xy - uCenter;
+  float d = shapeSDF(p);
+  vec2 L = vec2(cos(uAngle), sin(uAngle));
+
+  float base = (1.0 - smoothstep(0.0, uBaseWidth, abs(d))) * 0.45;
+
+  vec2 nEll = normalize(p / (uHalfSize * uHalfSize) + 1e-6);
+  float phi = acos(clamp(abs(dot(nEll, L)), 0.0, 1.0));
+  float rim = 1.0 - smoothstep(uShineSize - uShineFade, uShineSize + uShineFade + 1e-4, phi);
+  float line = gaussianLine(d, uThickness);
+  float edgeClamp = 1.0 - smoothstep(0.5 * uPx, 3.0 * uPx, abs(d));
+  float hi = line * rim * edgeClamp * uIntensity;
+
+  vec3 col = uBaseColor * base + uLineColor * hi;
+  float a = clamp(base + hi, 0.0, 1.0);
+  fragColor = vec4(col, a);
+}
+`;
+
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+    const num = parseInt(full, 16);
+    return [((num >> 16) & 255) / 255, ((num >> 8) & 255) / 255, (num & 255) / 255];
+  }
+
+  function compileShader(gl, type, src) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
+    }
+    return shader;
+  }
+
+  function createSpecularButton(btn, fx, options) {
+    const props = Object.assign({
+      radius: 18,
+      lineColor: '#ffffff',
+      baseColor: '#525252',
+      intensity: 1,
+      shineSize: 10,
+      shineFade: 40,
+      thickness: 1,
+      speed: 0.35,
+      followMouse: true,
+      proximity: 250,
+      autoAnimate: false,
+    }, options);
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const canvas = document.createElement('canvas');
+    fx.appendChild(canvas);
+    const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: true });
+    if (!gl) { console.warn('WebGL2 not supported'); return () => {}; }
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    const vs = compileShader(gl, gl.VERTEX_SHADER, VERT);
+    const fs = compileShader(gl, gl.FRAGMENT_SHADER, FRAG);
+    const program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(program));
+    }
+    gl.useProgram(program);
+
+    // Full-screen triangle
+    const posBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const posLoc = gl.getAttribLocation(program, 'position');
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const uniforms = {
+      uCenter: gl.getUniformLocation(program, 'uCenter'),
+      uHalfSize: gl.getUniformLocation(program, 'uHalfSize'),
+      uRadius: gl.getUniformLocation(program, 'uRadius'),
+      uAngle: gl.getUniformLocation(program, 'uAngle'),
+      uPx: gl.getUniformLocation(program, 'uPx'),
+      uLineColor: gl.getUniformLocation(program, 'uLineColor'),
+      uBaseColor: gl.getUniformLocation(program, 'uBaseColor'),
+      uIntensity: gl.getUniformLocation(program, 'uIntensity'),
+      uShineSize: gl.getUniformLocation(program, 'uShineSize'),
+      uShineFade: gl.getUniformLocation(program, 'uShineFade'),
+      uThickness: gl.getUniformLocation(program, 'uThickness'),
+      uBaseWidth: gl.getUniformLocation(program, 'uBaseWidth'),
+    };
+
+    const sizeRef = { w: 1, h: 1 };
+
+    function resize() {
+      const rect = btn.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      sizeRef.w = w;
+      sizeRef.h = h;
+      const cw = Math.max(1, Math.round((w + PAD * 2) * dpr));
+      const ch = Math.max(1, Math.round((h + PAD * 2) * dpr));
+      canvas.width = cw;
+      canvas.height = ch;
+      canvas.style.width = (w + PAD * 2) + 'px';
+      canvas.style.height = (h + PAD * 2) + 'px';
+      gl.viewport(0, 0, cw, ch);
+      gl.uniform2f(uniforms.uCenter, (PAD + w / 2) * dpr, (PAD + h / 2) * dpr);
+      gl.uniform2f(uniforms.uHalfSize, (w / 2) * dpr, (h / 2) * dpr);
+    }
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(btn);
+    resize();
+
+    let pointerAngle = null;
+    let proximityT = 0;
+
+    function onPointerMove(e) {
+      const rect = btn.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = Math.max(rect.left - e.clientX, 0, e.clientX - rect.right);
+      const dy = Math.max(rect.top - e.clientY, 0, e.clientY - rect.bottom);
+      const dist = Math.hypot(dx, dy);
+      if (dist === 0) {
+        const nx = (e.clientX - cx) / (rect.width / 2);
+        const ny = (cy - e.clientY) / (rect.height / 2);
+        pointerAngle = Math.atan2(2 / rect.height, -2 / rect.width) + nx * 0.3 + ny * 0.15;
+      } else {
+        pointerAngle = Math.atan2(cy - e.clientY, e.clientX - cx);
+      }
+      const t = Math.max(0, 1 - dist / Math.max(props.proximity, 1));
+      proximityT = t * t * (3 - 2 * t);
+    }
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+
+    let angle = 2.4;
+    let idleAngle = 2.4;
+    let bright = 0;
+    let last = performance.now();
+    let raf = 0;
+
+    function update(now) {
+      raf = requestAnimationFrame(update);
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+
+      idleAngle += props.speed * dt;
+      const steer = props.followMouse && pointerAngle != null && (!props.autoAnimate || proximityT > 0);
+      const target = steer ? pointerAngle : idleAngle;
+      const diff = ((target - angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      angle += diff * (1 - Math.exp(-dt * 7));
+
+      const brightTarget = props.autoAnimate ? 1 : proximityT;
+      bright += (brightTarget - bright) * (1 - Math.exp(-dt * 8));
+
+      const lineC = hexToRgb(props.lineColor);
+      const baseC = hexToRgb(props.baseColor);
+
+      gl.uniform1f(uniforms.uAngle, angle);
+      gl.uniform1f(uniforms.uRadius, Math.min(props.radius, Math.min(sizeRef.w, sizeRef.h) / 2) * dpr);
+      gl.uniform3f(uniforms.uLineColor, lineC[0], lineC[1], lineC[2]);
+      gl.uniform3f(uniforms.uBaseColor, baseC[0], baseC[1], baseC[2]);
+      gl.uniform1f(uniforms.uIntensity, props.intensity * bright);
+      gl.uniform1f(uniforms.uShineSize, (props.shineSize * Math.PI) / 180);
+      gl.uniform1f(uniforms.uShineFade, (props.shineFade * Math.PI) / 180);
+      gl.uniform1f(uniforms.uThickness, props.thickness * dpr);
+      gl.uniform1f(uniforms.uPx, dpr);
+      gl.uniform1f(uniforms.uBaseWidth, dpr);
+
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+    raf = requestAnimationFrame(update);
+
+    return function destroy() {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('pointermove', onPointerMove);
+      if (canvas.parentNode === fx) fx.removeChild(canvas);
+    };
+  }
+
+
+export { createSpecularButton };
+
