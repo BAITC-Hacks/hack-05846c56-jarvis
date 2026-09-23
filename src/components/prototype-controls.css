@@ -283,6 +283,7 @@
 .nav-filter-defs{position:absolute;pointer-events:none}
 .prototype-nav-row .effect.filter{mix-blend-mode:normal}
 .prototype-nav-row .effect.filter::before{display:none}
+.prototype-nav-row .effect.filter::after{display:none}
 .prototype-nav-row .gooey-nav-container a:focus-visible{outline:none}
 .nav-language{margin:0;padding-left:18px;border-left:1px solid #ffffff20;gap:2px}
 .nav-language button{font-size:13px;padding:7px 9px;min-height:36px}
