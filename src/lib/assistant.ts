@@ -45,7 +45,7 @@ export async function answerAssistant(input:AssistantInput):Promise<ChatResponse
   found=found.filter(product=>matchesVisualEvidence(product,visual));
   result.products=found.slice(0,6);result.sources=result.products.map(product=>({title:product.name,url:product.url}));
   result.message=(kk?'Сурет бойынша: ':'По фото: ')+visual.description;
-  if(visual.markings.length)result.message+='\n'+(kk?'Оқылған таңбалар: ':'Распознанные обозначения: ')+visual.markings.join(', ')+'.';
+  if(visual.markings.length)result.message+='\n'+(kk?'Алдын ала оқылған таңбалар (суретпен салыстырыңыз): ':'Предварительно прочитанные обозначения (сверьте с фото): ')+visual.markings.join(', ')+'.';
   if(visual.uncertain)result.message+='\n'+visual.uncertain;
   result.message+='\n\n'+(found.length?(kk?'Төменде түрі мен оқылған таңбалары сәйкес каталог үміткерлері. Бұл нақты модельді растау емес: артикул мен номиналды токты тексеріңіз.':'Ниже кандидаты из каталога с совпадающими типом и прочитанными обозначениями. Это не подтверждение точной модели: сверьте артикул и номинал.'):(kk?'Оқылған белгілерге сай тауар табылмады. Артикулды жазыңыз немесе таңбалауды жақыннан түсіріңіз.':'По прочитанным признакам подходящих товаров не найдено. Напишите артикул или пришлите маркировку крупным планом.'));
   for(const warning of new Set(result.products.map(product=>product.specs['Проверка данных']).filter(Boolean)))result.message+='\n⚠ '+(kk?kazakhConflict(warning):warning);
