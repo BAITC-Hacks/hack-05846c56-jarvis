@@ -20,5 +20,6 @@ export async function requireAccountUser(): Promise<AccountUser> {
   if (result.error) throw new AccountError('Не удалось проверить сессию / Сессияны тексеру мүмкін болмады');
   const session = result.data;
   if (!session?.user?.id) throw new AccountError('Войдите, чтобы открыть историю / Тарихты ашу үшін кіріңіз', 401, 'SIGN_IN_REQUIRED');
+  if (session.user.emailVerified !== true) throw new AccountError('Подтвердите почту, чтобы открыть историю / Тарихты ашу үшін поштаңызды растаңыз', 403, 'EMAIL_NOT_VERIFIED');
   return { id: session.user.id, email: session.user.email || '', name: session.user.name || '' };
 }

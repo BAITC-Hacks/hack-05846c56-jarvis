@@ -8,7 +8,7 @@ import { matchesVisualEvidence, exactProductReference } from './evidence';
 import { answerDeterministically } from './assistant-deterministic';
 import { recentProductIds, ordinalReference } from './assistant-context';
 import { getRelatedProducts } from './related';
-import { specificationLimitWarning } from './assistant-specification';
+import { extractStructuredSpecification, resolveStructuredSpecification, specificationLimitWarning } from './assistant-specification';
 import { hasUnusableImage } from './assistant-image';
 
 export type AssistantInput={messages:ChatMessage[];locale:Locale;attachments?:Attachment[];contextProductIds?:string[]};
@@ -32,6 +32,13 @@ export async function answerAssistant(input:AssistantInput):Promise<ChatResponse
  const result:ChatResponse={message:'',products:[],suggestions:suggestion,sources:[],mode:'catalog'};
  if(input.attachments?.some(attachment=>attachment.dataUrl)&&await hasUnusableImage(input.attachments)){
   result.message=kk?'Суретте жабдықты сенімді анықтауға жеткілікті айқын бөлшектер көрінбейді немесе файлды оқу мүмкін емес. Жабдық пен таңбалау анық көрінетін фото жіберіңіз немесе артикулды жазыңыз.':'На фото недостаточно различимых деталей для надёжного определения оборудования либо файл не читается. Пришлите чёткое фото оборудования и маркировку крупным планом или напишите артикул.';
+  return result;
+ }
+ const structuredLines=extractStructuredSpecification(input.attachments||[]);
+ if(structuredLines){
+  result.specification=await resolveStructuredSpecification(structuredLines,searchProducts,maxPrice);
+  result.message=kk?'Спецификациядағы артикулдар мен санды бағандардан оқыдым. Әр жолдағы тауар мен санды тексеріңіз, содан кейін керек жолдарды белгілеңіз. Тауарлар әлі себетке қосылған жоқ.':'Прочитал артикулы и количество из колонок спецификации. Проверьте товар и количество в каждой строке, затем отметьте нужные строки. Товары ещё не добавлены в корзину.';
+  const warning=specificationLimitWarning(input.attachments||[],result.specification.length,structuredLines.length>12,input.locale);if(warning)result.message+='\n\n'+warning;
   return result;
  }
  const quickIntent=fallbackIntent(last);

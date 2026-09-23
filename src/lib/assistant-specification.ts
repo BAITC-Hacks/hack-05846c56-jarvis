@@ -1,4 +1,57 @@
-import type { Attachment, Locale } from './types';
+import type { Attachment, Locale, Product, SpecificationRow } from './types';
+
+export interface StructuredSpecificationLine { label: string; query: string; quantity: number | null; }
+
+/** Only bypass AI when every nonempty attachment is an explicit SKU/quantity table.
+ * Unknown prose, mixed documents and ambiguous layouts keep the normal review path. */
+export function extractStructuredSpecification(attachments: Attachment[]): StructuredSpecificationLine[] | null {
+ if (!attachments.length || attachments.some(attachment => attachment.dataUrl || !attachment.text?.trim())) return null;
+ const rows: StructuredSpecificationLine[] = [];
+ for (const attachment of attachments) {
+  let columns: { delimiter: string; code: number; quantity: number } | null = null;
+  let recognized = false;
+  for (const rawLine of attachment.text!.replace(/^\uFEFF/, '').split(/\r?\n/)) {
+   const line = rawLine.trim();
+   if (!line) continue;
+   if (/^\[.*\]$/.test(line)) { columns = null; continue; }
+   const delimiter = line.includes('\t') ? '\t' : line.includes(';') ? ';' : line.includes(',') ? ',' : null;
+   if (delimiter) {
+    const cells = splitCells(line, delimiter);
+    const code = cells.findIndex(cell => /^(?:артикул|код(?:\s+товара)?|sku|article|тауар\s+коды)$/i.test(cell));
+    const quantity = cells.findIndex(cell => /^(?:кол(?:ичество|[.-]?во)|quantity|qty|сан[ыа]?|саны|кол-во)(?:\s*[,([][^\r\n]*)?$/i.test(cell));
+    if (code >= 0 && quantity >= 0 && code !== quantity) { columns = { delimiter, code, quantity }; recognized = true; continue; }
+   }
+   if (!columns) return null;
+   const cells = splitCells(line, columns.delimiter);
+   if (/^(?:итого|всего|total|барлығы)(?:\s|$)/i.test(cells[0] || '')) continue;
+   const code = cells[columns.code] || '';
+   // No fuzzy interpretation of prose, several articles in one cell, or formulas.
+   if (!/^[\p{L}\p{N}._/-]{1,80}$/u.test(code) || !/\d/.test(code)) return null;
+   const rawQuantity = cells[columns.quantity] || '';
+   const quantity = /^\d+(?:[.,]\d+)?$/.test(rawQuantity) ? Number(rawQuantity.replace(',', '.')) : NaN;
+   rows.push({ label: code, query: code, quantity: Number.isFinite(quantity) && quantity > 0 && quantity <= 100000 ? quantity : null });
+  }
+  if (!recognized) return null;
+ }
+ return rows.length ? rows : null;
+}
+
+export async function resolveStructuredSpecification(
+ lines: StructuredSpecificationLine[],
+ lookup: (query: string, options: { limit: number; maxPrice?: number }) => Promise<Product[]>,
+ maxPrice?: number,
+): Promise<SpecificationRow[]> {
+ return Promise.all(lines.slice(0, 12).map(async line => {
+  const query = line.query.trim().toLowerCase();
+  const candidates = await lookup(line.query, { limit: 12, maxPrice });
+  // A product-name prefix or fuzzy SKU hit must never preselect a different item.
+  const matches = [...new Map(candidates.filter(product =>
+   [product.id, product.sku, product.specs.ARTIKULPOSTAVSHCHIKA].some(value => value?.trim().toLowerCase() === query)
+   && (maxPrice == null || (product.price != null && product.price <= maxPrice))
+  ).map(product => [product.id, product])).values()];
+  return { label: line.label, quantity: line.quantity, products: matches, exact: matches.length === 1 };
+ }));
+}
 
 // Only count rows with an explicit SKU/code column and an explicit numeric quantity column.
 // Prose lines, headings and numbered instructions are not assumed to be procurement items.

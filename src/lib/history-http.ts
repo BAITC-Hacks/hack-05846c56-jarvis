@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AccountError } from './auth-server';
+import { AuthPolicyError, protectAuthOrigin } from './auth-policy';
 
 export function historyOrigin(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  if ((origin && origin !== request.nextUrl.origin) || request.headers.get('sec-fetch-site') === 'cross-site') throw new AccountError('Недопустимый источник запроса / Сұрау көзі жарамсыз', 403, 'INVALID_ORIGIN');
+  try { protectAuthOrigin(request); }
+  catch (error) {
+    if (error instanceof AuthPolicyError) throw new AccountError(error.message, error.status, error.code);
+    throw error;
+  }
 }
 export function historyFailure(error: unknown) {
   if (error instanceof AccountError) return NextResponse.json({ error: error.message, code: error.code }, { status: error.status, headers: { 'Cache-Control': 'no-store' } });

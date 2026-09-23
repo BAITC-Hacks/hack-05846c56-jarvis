@@ -1,0 +1,81 @@
+// UI contract test with ALL auth/history responses mocked. No provider accounts, emails or real sessions.
+const {chromium,expect}=require('@playwright/test');
+const assert=require('node:assert/strict');
+const base=process.env.TEST_BASE_URL||'http://localhost:3000';
+(async()=>{
+ const browser=await chromium.launch({channel:process.env.PLAYWRIGHT_CHANNEL||'chrome',headless:true});
+ const context=await browser.newContext({viewport:{width:390,height:844},reducedMotion:'reduce'});
+ const page=await context.newPage(), calls=[], errors=[];
+ await page.clock.install();
+ page.on('pageerror',error=>errors.push(error.message));
+ let verified=false,resetDone=false;
+ const user={id:'mock-user',email:'ui-contract@example.invalid',name:'UI test',emailVerified:false};
+ await page.route('**/api/auth/**',async route=>{
+   const path=new URL(route.request().url()).pathname.replace('/api/auth/','');
+   const body=route.request().method()==='POST'?route.request().postDataJSON():null;
+   calls.push({path,body});
+   const reply=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
+   if(path==='get-session') return reply(null);
+   if(path==='sign-up/email') return reply({token:null,user});
+   if(path==='email-otp/verify-email') {if(body.otp!=='123456')return reply({code:'INVALID_OTP',message:'invalid'},400);verified=true;return reply({status:true,user:{...user,emailVerified:true}});}
+   if(path==='sign-out')return reply({success:true});
+   if(path==='sign-in/email')return verified?reply({token:'mock-token',user:{...user,emailVerified:true}}):reply({code:'EMAIL_NOT_VERIFIED',message:'verify'},403);
+   if(path==='email-otp/request-password-reset')return reply({success:true});
+   if(path==='email-otp/reset-password'){assert.equal(body.otp,'654321');assert.equal(body.password,'new-password-123');resetDone=true;return reply({success:true});}
+   if(path==='email-otp/send-verification-otp')return reply({success:true});
+   throw new Error('Unexpected auth endpoint: '+path);
+ });
+ await page.route('**/api/history',route=>route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({code:'SIGN_IN_REQUIRED'})}));
+ try{
+   await page.goto(base+'/auth/sign-in');
+   await page.locator('input[name=email]').fill(user.email);
+   await page.locator('input[name=password]').fill('password-test-123');
+   await page.getByRole('button',{name:'Войти',exact:true}).click();
+   await expect(page.getByRole('textbox',{name:'Код из письма, 6 цифр'})).toBeAttached();
+   await expect(page.locator('.auth-error')).toContainText('Подтвердите email');
+   calls.length=0;
+   await page.goto(base+'/auth/sign-up');
+   await page.locator('input[name=name]').fill('UI test');
+   await page.locator('input[name=email]').fill(user.email);
+   await page.locator('input[name=password]').fill('password-test-123');
+   await page.locator('input[name=confirmPassword]').fill('password-test-123');
+   await page.getByRole('button',{name:'Создать аккаунт',exact:true}).click();
+   const otp=page.getByRole('textbox',{name:'Код из письма, 6 цифр'});
+   await expect(otp).toBeAttached();
+   assert.equal(calls.filter(c=>c.path==='sign-up/email').length,1);
+   assert.equal(calls.filter(c=>c.path==='email-otp/send-verification-otp').length,0,'signup sends one provider OTP; client must not send a duplicate');
+   await expect(page.getByRole('button',{name:/Новый код через/})).toBeDisabled();
+   await page.clock.fastForward(61000);
+   await page.getByRole('button',{name:'Отправить код ещё раз',exact:true}).click();
+   await expect(page.locator('.auth-notice')).toContainText('Код отправлен');
+   assert.deepEqual(calls.find(c=>c.path==='email-otp/send-verification-otp').body,{email:user.email,type:'email-verification'});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'code form must fit mobile');
+   await otp.fill('999999');
+   await page.getByRole('button',{name:'Подтвердить email',exact:true}).click();
+   await expect(page.locator('.auth-error')).toContainText('Код неверный');
+   await expect(otp).toHaveValue('');
+   await otp.fill('123456');
+   await page.screenshot({path:require('node:path').join(require('node:os').tmpdir(),'jarvis-auth-code-slots.png')});
+   await page.getByRole('button',{name:'Подтвердить email',exact:true}).click();
+   await expect(page.getByRole('button',{name:'Войти',exact:true})).toBeVisible();
+   await expect(page.locator('.auth-notice')).toContainText('Email подтверждён');
+   assert.equal(calls.filter(c=>c.path==='sign-in/email').length,0,'verification must not silently perform a passwordless login');
+   await page.locator('input[name=password]').fill('password-test-123');
+   await page.getByRole('button',{name:'Войти',exact:true}).click();
+   await expect(page).toHaveURL(base+'/');
+   assert.equal(calls.find(c=>c.path==='sign-in/email').body.password,'password-test-123');
+   await page.goto(base+'/auth/forgot-password');
+   await page.locator('input[name=email]').fill(user.email);
+   await page.getByRole('button',{name:'Получить код',exact:true}).click();
+   await expect(otp).toBeAttached();
+   await otp.fill('654321');
+   await page.locator('input[name=password]').fill('new-password-123');
+   await page.locator('input[name=confirmPassword]').fill('new-password-123');
+   await page.getByRole('button',{name:'Сохранить пароль',exact:true}).click();
+   await expect(page.locator('.auth-notice')).toContainText('Пароль сохранён');
+   assert.equal(resetDone,true);
+   assert.ok(!calls.some(c=>c.path==='sign-in/email-otp'));
+   assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({ok:true,mocked:true,checks:['unverified-password-login-to-code','signup-password','single-provider-verification-mail','resend-after-cooldown','six-digit-mobile-slots','invalid-code-error-and-retry','verify-then-password-login','OTP-account-password-reset','no-passwordless-login'],realAccountsCreated:0,emailsSent:0}));
+ }finally{await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
