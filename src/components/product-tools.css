@@ -1,0 +1,15 @@
+.spec-review{margin:20px 0;padding:18px;border:1px solid #37313f;border-radius:14px;background:#15121bd9}
+.spec-review-row{padding:16px 0;border-bottom:1px solid #342e3d}
+.spec-review-row:first-child{padding-top:0}.spec-review-row:last-of-type{margin-bottom:16px}
+.spec-review-choice,.comparison-toggle{display:flex;align-items:center;gap:10px;color:#f4f0fa;cursor:pointer}
+.spec-review input[type=checkbox],.comparison-toggle input{width:18px;height:18px;accent-color:#bda4fa;flex-shrink:0}
+.spec-match{display:block;margin:9px 0;color:#e0c58f;font-size:12px}.spec-match.exact{color:#a6d8b7}
+.spec-review-fields{display:grid;grid-template-columns:minmax(0,1fr) 115px;gap:12px}
+.spec-review-fields label{min-width:0}.spec-review-fields label>span{display:block;color:#c8bed8;font-size:12px;margin-bottom:6px}
+.spec-review-fields select,.spec-review-fields input{background:#211b2c;color:#f6f2fc;border:1px solid #544765;border-radius:8px;padding:10px;width:100%;min-width:0;font:inherit;font-size:13px}
+.spec-review .small-note{color:#c4b9d1;display:block}.spec-product-name{display:block;margin:12px 0 6px;font-size:13px;line-height:1.6;overflow-wrap:anywhere}.spec-review a,.comparison-table a{color:#d2baff;text-decoration:underline;text-underline-offset:3px}.spec-conflict{display:block;color:#efc37c;margin-top:8px}
+.comparison-toggle{margin:14px 0 20px;font-size:14px}.comparison-scroll{overflow:auto;max-height:65vh;overscroll-behavior:contain}
+.comparison-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}.comparison-table th,.comparison-table td{padding:14px;border-bottom:1px solid #39323e;min-width:180px;vertical-align:top;color:#eee9f5}
+.comparison-table th:first-child{min-width:150px;max-width:210px;color:#c2b5d2}.comparison-table thead th{width:220px}.comparison-table .product-image{width:100%;height:115px;object-fit:contain;margin-bottom:12px;border-radius:8px;background:#f5f5f6}.comparison-table thead span{display:block}.comparison-table tr.different{background:#aa82f512}.comparison-table small{display:block;color:#b9adc8;margin-top:8px}.comparison-table .secondary-button{white-space:normal}
+.cart-export{margin-top:12px}.comparison-table td{overflow-wrap:anywhere}
+@media(max-width:600px){.spec-review{padding:12px}.spec-review-fields{grid-template-columns:minmax(0,1fr) 85px}.comparison-table th,.comparison-table td{min-width:155px;padding:10px}.comparison-table th:first-child{min-width:115px}.spec-review-choice{align-items:flex-start}}

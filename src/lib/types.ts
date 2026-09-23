@@ -4,4 +4,5 @@ export interface CartLine { product: Product; quantity: number; }
 export interface Cart { id: string; items: CartLine[]; total: number; updatedAt: string; mode: 'prototype'; }
 export interface Attachment { name: string; type: string; text?: string; dataUrl?: string; }
 export interface ChatMessage { role: 'user' | 'assistant'; content: string; productIds?: string[]; }
-export interface ChatResponse { message: string; products: Product[]; suggestions: string[]; proposedItems?: {productId:string;quantity:number}[]; sources: {title:string;url:string}[]; mode: 'ai' | 'catalog'; }
+export interface SpecificationRow { label: string; quantity: number | null; products: Product[]; exact: boolean; }
+export interface ChatResponse { message: string; products: Product[]; suggestions: string[]; specification?: SpecificationRow[]; proposedItems?: {productId:string;quantity:number}[]; sources: {title:string;url:string}[]; mode: 'ai' | 'catalog'; }

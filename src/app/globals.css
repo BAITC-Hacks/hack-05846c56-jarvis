@@ -55,3 +55,18 @@ body:lang(kk),body :where(:lang(kk)){font-family:'Noto Sans Kazakh',Arial,Helvet
 .catalog-page .category-filters button{background:#18151ef2;border-color:#51485f;color:#e4ddeb}
 .catalog-page .category-filters button:hover{background:#30263d;border-color:#9581b2;color:#fff}
 .catalog-page .category-filters button.active{background:#c3acf5;border-color:#c3acf5;color:#191020}
+
+/* Conversation: one readable frosted sheet, without the opaque bottom strip. */
+.conversation{max-width:640px;padding:28px 16px 0;gap:14px}
+.conversation .conversation-actions{width:100%;padding:0 6px 2px}
+.conversation .message-list{padding:24px 24px 12px;border:1px solid #ffffff1a;border-radius:24px;background:linear-gradient(135deg,#302d3d59,#17161e66);-webkit-backdrop-filter:blur(24px) saturate(135%);backdrop-filter:blur(24px) saturate(135%);box-shadow:inset 0 1px 0 #ffffff14,0 16px 48px #00000012}
+.conversation .message-text{color:#eee9f6}.conversation .message-author{color:#e8ddf5}
+.conversation .message-sources,.conversation .message-sources a{color:#cbbcd9}
+.conversation .message-products{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.conversation .conversation-composer{background:none;padding:10px 12px 16px}
+.conversation .prompt-bar{--pb-w:560px;--pb-bg:rgba(44,41,53,.55)}
+.conversation .prompt-bar__field{border:1px solid #ffffff24;-webkit-backdrop-filter:blur(28px) saturate(140%);backdrop-filter:blur(28px) saturate(140%);box-shadow:inset 0 1px 0 #ffffff18,0 8px 30px #0002}
+.conversation .composer-note{color:#c0b5d0;text-shadow:0 1px 5px #000;margin-top:10px}
+.conversation .followups button{background:#ffffff08;color:#d5c5ed;border-color:#ffffff24}
+@media(max-width:600px){.conversation{padding:18px 10px 0;gap:12px}.conversation .message-list{padding:18px 14px 6px;border-radius:18px}.conversation .message{gap:10px}.conversation .message-products{grid-template-columns:1fr}.conversation .conversation-composer{padding:8px 4px 12px}.conversation .composer-note{font-size:10px;line-height:1.5;text-align:center}.conversation .message-avatar{width:24px;height:24px}.conversation .message-author{margin-bottom:9px}}
+@supports not (backdrop-filter:blur(1px)){.conversation .message-list{background:#201c2be8}.conversation .prompt-bar__field{background:#282232ed}}
