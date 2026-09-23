@@ -2,13 +2,13 @@
 // Faithful React lifecycle port of the supplied ../логотип.html.
 import { useEffect, useRef, type CSSProperties } from 'react';
 
-export interface DepthLogoProps { text?: string; className?: string; fontSize?: string }
+export interface DepthLogoProps { text?: string; className?: string; fontSize?: string; depth?: number }
 const clamp = (v:number,min:number,max:number) => Math.min(Math.max(v,min),max);
 const getTransform = (rx:number,ry:number) => `rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg)`;
-export default function DepthLogo({text='Jarvis',className='',fontSize='clamp(3rem, 12vw, 7rem)'}:DepthLogoProps) {
+export default function DepthLogo({text='Jarvis',className='',fontSize='clamp(3rem, 12vw, 7rem)',depth=2.4}:DepthLogoProps) {
   const rootRef=useRef<HTMLSpanElement>(null);
   const stageRef=useRef<HTMLSpanElement>(null);
-  const layers=34,depth=2.4,tilt=7.5,smoothing=0.14,orbitSpeed=0.35;
+  const layers=34,tilt=7.5,smoothing=0.14,orbitSpeed=0.35;
   useEffect(()=>{
     const root=rootRef.current,stage=stageRef.current;if(!root||!stage)return;
     const baseRotation={x:-tilt*0.32,y:tilt*0.42};

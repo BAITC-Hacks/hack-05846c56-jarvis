@@ -197,6 +197,7 @@ export default function JarvisApp({ initialView = 'assistant' }: { initialView?:
 
     <main className={`main-content view-${view} ${messages.length ? 'has-messages' : ''}`}>
       <header className="prototype-nav-row">
+        <button className="nav-brand" onClick={() => navigate('assistant')} aria-label={locale === 'ru' ? 'Jarvis — главная' : 'Jarvis — басты бет'}><DepthLogo text="Jarvis" fontSize="30px" depth={0.65} /></button>
         <GooeyNav active={view} onSelect={id => navigate(id as View)} items={[{ id: 'assistant', label: t.assistant, href: '/' }, { id: 'catalog', label: t.catalog, href: '/#catalog' }, { id: 'cart', label: t.cart, href: '/cart' }]} />
         <div className="nav-actions"><div className="language-switch nav-language" aria-label={locale === 'ru' ? 'Язык' : 'Тіл'}><button onClick={() => changeLocale('ru')} className={locale === 'ru' ? 'active' : ''} aria-pressed={locale === 'ru'}>Рус</button><button onClick={() => changeLocale('kk')} className={locale === 'kk' ? 'active' : ''} aria-pressed={locale === 'kk'}>Қаз</button></div><SpecularButton className="nav-start" onClick={() => { navigate('assistant'); requestAnimationFrame(() => textareaRef.current?.focus()); }}>{locale === 'ru' ? 'Начать подбор' : 'Таңдауды бастау'}</SpecularButton></div>
       </header>
