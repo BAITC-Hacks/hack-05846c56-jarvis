@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {countStructuredSpecificationRows,specificationLimitWarning} from '../src/lib/assistant-specification';
+const file=(text:string)=>({name:'test.csv',type:'text/csv',text});
+const table=(count:number)=>'Артикул;Количество;Наименование\n'+Array.from({length:count},(_,i)=>`SKU${10000+i};2;Автомат 16А`).join('\n');
+test('13+ structured specification rows cannot be silently capped despite false model flag',()=>{const attachments=[file(table(15))];assert.equal(countStructuredSpecificationRows(attachments),15);const ru=specificationLimitWarning(attachments,12,false,'ru');const kk=specificationLimitWarning(attachments,12,false,'kk');assert.match(ru!,/15/);assert.match(ru!,/Остальные строки не обработаны/);assert.match(kk!,/Қалған жолдар өңделген жоқ/);});
+test('recognized complete short table needs no extra-row warning',()=>{const attachments=[file(table(3))];assert.equal(specificationLimitWarning(attachments,3,false,'ru'),null);});
+test('TSV sheets sum product rows; totals and headers are not products',()=>{const attachment=file('[Sheet1]\nАртикул\tКоличество (шт.)\nAA001\t2\nИтого\t2\n[Sheet2]\nSKU\tQuantity\nAA002\t3');assert.equal(countStructuredSpecificationRows([attachment]),2);});
+test('quoted CSV fields do not move the quantity column',()=>{const attachment=file('Артикул,Наименование,Количество\nAA001,"Автомат, 16А",2');assert.equal(countStructuredSpecificationRows([attachment]),1);});
+test('unstructured input relies on explicit model hasMore signal, never pretends complete count',()=>{const attachments=[file('Автомат 16А 2 шт\nКабель 3х2,5 10 м')];assert.equal(countStructuredSpecificationRows(attachments),null);assert.match(specificationLimitWarning(attachments,12,true,'ru')!,/дополнительные товары/);assert.match(specificationLimitWarning(attachments,8,null,'kk')!,/сенімді анықтау мүмкін болмады/);assert.match(specificationLimitWarning(attachments,12,false,'ru')!,/не удалось надёжно подтвердить/);});
+test('truncated document warns even when model claims no more lines',()=>{const attachments=[{...file(table(2)),truncated:true}];assert.match(specificationLimitWarning(attachments,2,false,'ru')!,/Часть текста документа была обрезана/);assert.match(specificationLimitWarning([file('x'.repeat(16001))],1,false,'kk')!,/қысқартылған/);});
+test('unextracted structured rows below hard cap are also disclosed',()=>{assert.match(specificationLimitWarning([file(table(10))],8,false,'ru')!,/обработано только 8/);});
