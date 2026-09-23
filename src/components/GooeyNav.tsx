@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import './prototype-controls.css';
 
 type NavItem = { id:string; label:string; href:string };
@@ -9,6 +9,7 @@ export default function GooeyNav({ items, active, onSelect }: { items: NavItem[]
   const filterRef = useRef<HTMLSpanElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const initialized = useRef(false);
+  const filterId = `nav-goo-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const labels = items.map(item=>`${item.id}:${item.label}`).join('|');
   useEffect(() => {
     const container = containerRef.current, filterEl = filterRef.current, textEl = textRef.current;
@@ -46,5 +47,8 @@ export default function GooeyNav({ items, active, onSelect }: { items: NavItem[]
     const observer=new ResizeObserver(updateEffectPosition);observer.observe(container);
     return ()=>{observer.disconnect();timers.forEach(clearTimeout);frames.forEach(cancelAnimationFrame);filterEl.querySelectorAll('.particle').forEach(p=>p.remove());};
   }, [active, labels]);
-  return <div className="gooey-nav-container" ref={containerRef}><nav><ul>{items.map(item=><li key={item.id} data-id={item.id} className={active===item.id?'active':''}><a href={item.href} aria-current={active===item.id?'page':undefined} onClick={event=>{event.preventDefault();onSelect(item.id);}} onKeyDown={event=>{if(event.key===' '){event.preventDefault();onSelect(item.id);}}}>{item.label}</a></li>)}</ul></nav><span className="effect filter" ref={filterRef} aria-hidden="true"/><span className="effect text" ref={textRef} aria-hidden="true"/></div>;
+  return <div className="gooey-nav-container" ref={containerRef}>
+    <svg width="0" height="0" className="nav-filter-defs" aria-hidden="true"><defs><filter id={filterId} x="-150%" y="-300%" width="400%" height="700%" colorInterpolationFilters="sRGB"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur"/><feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="goo"/><feBlend in="SourceGraphic" in2="goo"/></filter></defs></svg>
+    <nav><ul>{items.map(item=><li key={item.id} data-id={item.id} className={active===item.id?'active':''}><a href={item.href} aria-current={active===item.id?'page':undefined} onClick={event=>{event.preventDefault();onSelect(item.id);}} onKeyDown={event=>{if(event.key===' '){event.preventDefault();onSelect(item.id);}}}>{item.label}</a></li>)}</ul></nav><span className="effect filter" style={{filter:`url(#${filterId})`}} ref={filterRef} aria-hidden="true"/><span className="effect text" ref={textRef} aria-hidden="true"/>
+  </div>;
 }

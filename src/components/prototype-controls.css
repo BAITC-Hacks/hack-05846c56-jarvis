@@ -276,8 +276,16 @@
 
 
 /* App positioning only. Original component geometry, shaders and effect CSS above stay intact. */
-/* Do not create a transparent stacking context here: the original lighten blend must sample the opaque page backdrop. */
-.prototype-nav-row{display:flex;align-items:center;justify-content:center;padding:22px 20px 12px;position:relative;z-index:auto}
+/* Alpha-only goo keeps the original particles without a black mask over page content. */
+.prototype-nav-row{display:flex;align-items:center;justify-content:center;gap:20px;padding:20px;position:sticky;top:0;z-index:30;background:transparent;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.nav-filter-defs{position:absolute;pointer-events:none}
+.prototype-nav-row .effect.filter{mix-blend-mode:normal}
+.prototype-nav-row .effect.filter::before{display:none}
+.prototype-nav-row .gooey-nav-container a:focus-visible{outline:none}
+.nav-language{margin:0;padding-left:18px;border-left:1px solid #ffffff20;gap:2px}
+.nav-language button{font-size:13px;padding:7px 9px;min-height:36px}
+.nav-language button:focus-visible{outline:2px solid #efedf3;outline-offset:2px}
+.conversation-actions{display:flex;justify-content:flex-end;width:min(100%,850px);margin:0 auto;padding:12px 24px 0}
 .gooey-nav-container{--color-1:#ff6b6b;--color-2:#4dabf7;--color-3:#69db7c;--color-4:#ffd43b;font-size:16px}
 .original-hero{height:440px}
 .original-hero-field{position:absolute;inset:0;z-index:-2;overflow:hidden;pointer-events:none}
@@ -288,10 +296,14 @@
 .specular-button__label{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .composer-wrap .prompt-bar{margin:0 auto;max-width:100%;z-index:15}
 .composer-wrap .prompt-bar__input{font-size:16px;line-height:22px}
+.composer-wrap .prompt-bar__input:focus,.composer-wrap .prompt-bar__input:focus-visible{outline:none;box-shadow:none}
+.composer-wrap .prompt-bar__field:focus-within{box-shadow:inset 0 0 0 1px #ffffff20}
 .composer-wrap .prompt-bar__tool:focus-visible,.composer-wrap .prompt-bar__pick:focus-visible,.composer-wrap .prompt-bar__send:focus-visible{outline:2px solid #b39dff;outline-offset:3px}
 .prompt-bar__speech-error{font-size:12px;color:#e5b6c2;margin-top:9px}
 .original-reveal-section{max-width:800px;margin:55px auto 80px;padding:0 30px}
 .original-marquee-section{padding-bottom:50px;overflow:hidden}
 @media(max-width:900px){.prototype-nav-row{padding-top:18px}.original-hero{height:440px}.original-reveal-section{margin:55px auto;padding:0 24px}}
 @media(max-width:520px){.gooey-nav-container{font-size:14px}.gooey-nav-container nav ul{gap:1em;padding:0 .4em}.original-hero{height:425px}.original-hero .hero-content{padding-left:10px;padding-right:10px}.prompt-bar__pick{font-size:12px;padding:0 6px}.prompt-bar__row-desc{font-size:11px}.prompt-bar__menu[data-kind='effort']{max-width:100%}.original-reveal-section{padding:0 22px}.original-hero .hero-coordinate,.original-hero .hero-corner{display:none}}
+@media(max-width:620px){.prototype-nav-row{gap:8px;padding:14px 10px}.prototype-nav-row .gooey-nav-container{font-size:14px}.prototype-nav-row .gooey-nav-container nav ul{gap:6px;padding:0}.prototype-nav-row .gooey-nav-container nav ul li a{padding:10px 12px}.nav-language{padding-left:8px}.nav-language button{padding:7px 6px;font-size:12px}}
+@media(max-width:360px){.prototype-nav-row{gap:5px;padding-inline:6px}.prototype-nav-row .gooey-nav-container nav ul{gap:2px}.prototype-nav-row .gooey-nav-container nav ul li a{padding-inline:9px}.nav-language{padding-left:5px}.nav-language button{padding-inline:5px}}
 
