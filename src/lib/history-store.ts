@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { neon, type NeonQueryFunction } from '@neondatabase/serverless';
 import { AccountError } from './auth-server';
 import { getProduct } from './catalog';
-import { historyMessageSchema, type HistoryConversation, type HistoryMessage, type HistorySummary, type SaveHistoryInput } from './history-types';
+import { historyMessageSchema, storedHistoryMessages, type HistoryConversation, type HistoryMessage, type HistorySummary, type SaveHistoryInput } from './history-types';
+import { redactPaymentDetails } from './payment-privacy';
 
 let client: NeonQueryFunction<false, false> | undefined;
 let migration: Promise<void> | undefined;
@@ -42,8 +43,9 @@ export async function listHistory(userId: string): Promise<HistorySummary[]> {
 }
 export async function saveHistory(userId: string, input: SaveHistoryInput): Promise<HistorySummary> {
   await ensureHistorySchema(); const sql = database();
-  const title = input.title || input.messages.find(message => message.role === 'user')?.content.trim().slice(0, 100) || (input.locale === 'ru' ? 'Диалог' : 'Диалог');
-  const body = JSON.stringify(input.messages);
+  const messages = storedHistoryMessages(input.messages);
+  const title = redactPaymentDetails(input.title || messages.find(message => message.role === 'user')?.content.trim() || 'Диалог').slice(0,input.title ? 160 : 100);
+  const body = JSON.stringify(messages);
   if (Buffer.byteLength(body, 'utf8') > 400000) throw new AccountError('Диалог слишком большой / Диалог тым үлкен', 413, 'HISTORY_TOO_LARGE');
   if (input.id) {
     const rows = await sql`UPDATE jarvis_conversations SET title = ${title}, locale = ${input.locale}, messages = ${body}::jsonb, revision = revision + 1, updated_at = NOW() WHERE id = ${input.id}::uuid AND user_id = ${userId} AND revision = ${input.revision} RETURNING id, title, locale, revision, created_at, updated_at, jsonb_array_length(messages) AS message_count`;

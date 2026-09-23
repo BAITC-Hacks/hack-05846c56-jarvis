@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 const base = process.env.TEST_BASE_URL || 'http://localhost:3000';
 
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined, headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   const page = await context.newPage();
   page.setDefaultTimeout(30000);

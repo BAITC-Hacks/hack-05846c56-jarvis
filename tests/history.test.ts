@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { historyMessageSchema, saveHistorySchema, storedHistoryMessages, type HistoryMessage } from '../src/lib/history-types';
 import { normalizeProduct } from '../src/lib/catalog';
+import { PAYMENT_REDACTION_TEXT } from '../src/lib/payment-privacy';
 
 test('history persists historical text and IDs, never submitted product prices or file blobs', () => {
   const product = normalizeProduct({ id: 515291, name: 'Товар', price: 999, quantity: 1, url: 'https://ekt.kz/catalog/' });
@@ -30,4 +31,16 @@ test('updates require optimistic revision and message storage remains bounded', 
   assert.equal(saveHistorySchema.safeParse({...create,messages:[{...message,content:'x'.repeat(20001)}]}).success,false);
   assert.equal(saveHistorySchema.safeParse({...create,userId:'forged-user'}).success,true);
   assert.equal('userId' in saveHistorySchema.parse({...create,userId:'forged-user'}),false);
+});
+
+test('server history schema and serializer redact payment text and titles without damaging product data', () => {
+ const sensitive='Карта: 4111111111111111, CVV: 123, IBAN KZ86125KZT5004100100';
+ const input={locale:'ru',title:sensitive,messages:[{id:'one',role:'user' as const,content:sensitive+'; артикул 200300285_ и 19281, 2 шт, 160А, 64920 ₸',productIds:['515291','19281']}]};
+ const saved=saveHistorySchema.parse(input); const stored=storedHistoryMessages(input.messages);
+ for(const value of [saved.title!,saved.messages[0].content,stored[0].content]){
+  assert.doesNotMatch(value,/4111111111111111|CVV: 123|KZ86125KZT5004100100/);assert.ok(value.includes(PAYMENT_REDACTION_TEXT));
+ }
+ assert.match(saved.messages[0].content,/200300285_ и 19281, 2 шт, 160А, 64920 ₸/);
+ assert.deepEqual(saved.messages[0].productIds,['515291','19281']);
+ assert.equal(input.title,sensitive,'caller input is not mutated');
 });

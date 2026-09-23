@@ -10,7 +10,7 @@ export function getAuth() {
   if (instance) return instance;
   const baseUrl = process.env.NEON_AUTH_BASE_URL;
   const secret = process.env.NEON_AUTH_COOKIE_SECRET;
-  if (!baseUrl || !secret || secret.length < 32) throw new AccountError('Вход пока недоступен. Попробуйте позже / Кіру әзірге қолжетімсіз. Кейінірек көріңіз');
+  if (!baseUrl || !secret || secret.length < 32) throw new AccountError('Вход пока недоступен. Попробуйте позже / Кіру әзірге қолжетімсіз. Кейінірек көріңіз', 503, 'AUTH_NOT_CONFIGURED');
   instance = createNeonAuth({ baseUrl, cookies: { secret, sessionDataTtl: 60 } });
   return instance;
 }

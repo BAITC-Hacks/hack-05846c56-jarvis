@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Locale, Product } from './types';
+import { redactPaymentDetails } from './payment-privacy';
 
 export interface HistoryMessage {
   id: string;
@@ -22,7 +23,7 @@ const safeSource = z.string().url().max(2000).refine(value => {
 export const historyMessageSchema = z.object({
   id: z.string().min(1).max(100),
   role: z.enum(['user', 'assistant']),
-  content: z.string().max(20000),
+  content: z.string().max(20000).transform(redactPaymentDetails).pipe(z.string().max(20000)),
   productIds: z.array(z.string().regex(/^\d{1,12}$/)).max(24).optional(),
   attachments: z.array(z.string().max(180)).max(3).optional(),
   sources: z.array(z.object({ title: z.string().max(180), url: safeSource })).max(16).optional(),
@@ -31,7 +32,7 @@ export const historyMessageSchema = z.object({
 });
 export const saveHistorySchema = z.object({
   id: z.string().uuid().optional(),
-  title: z.string().trim().min(1).max(160).optional(),
+  title: z.string().trim().min(1).max(160).transform(value => redactPaymentDetails(value).slice(0,160)).optional(),
   locale: z.enum(['ru', 'kk']),
   revision: z.number().int().positive().optional(),
   messages: z.array(historyMessageSchema).min(1).max(100),
