@@ -38,4 +38,20 @@ body{font-size:16px}.new-chat,.main-nav>button{font-size:14px}.nav-label{font-si
 @media(max-width:360px){.topbar-full-width{padding:0 8px}.topbar-full-width .topbar-right{gap:5px}.topbar-new-chat{padding:8px 6px}.topbar-language button{padding:5px}}
 
 /* Unified brand typography; existing font sizes and line heights stay intact. */
-body,body :where(*){font-family:'Neue Machina',Arial,Helvetica,sans-serif!important;font-weight:800!important}
+@font-face{font-family:'Noto Sans Kazakh';src:url('/fonts/NotoSans-ExtraBold.ttf') format('truetype');font-weight:800;font-style:normal;font-display:swap}
+body,body :where(*){font-family:'Neue Machina','Noto Sans Kazakh',Arial,Helvetica,sans-serif!important;font-weight:800!important}
+/* One complete alphabet for each Kazakh text run, without mixed fallback glyphs. */
+body:lang(kk),body :where(:lang(kk)){font-family:'Noto Sans Kazakh',Arial,Helvetica,sans-serif!important}
+.depth-text,.depth-text :where(*){font-family:'Neue Machina',Arial,Helvetica,sans-serif!important}
+
+/* Readable catalog controls over the animated site background. */
+.catalog-page .page-intro>p{color:#d6cfdf;max-width:780px}
+.catalog-page .search-field{background:#19161f;border-color:#655c74;color:#f5f1fa}
+.catalog-page .search-field:focus-within{border-color:#c8b3ff;box-shadow:0 0 0 3px #b59af824}
+.catalog-page .search-field>svg{color:#cbbfe0}
+.catalog-page .search-field input{color:#faf7ff}
+.catalog-page .search-field input::placeholder{color:#c6bdd2;opacity:1}
+.catalog-page .catalog-total{color:#c6bdd2}
+.catalog-page .category-filters button{background:#18151ef2;border-color:#51485f;color:#e4ddeb}
+.catalog-page .category-filters button:hover{background:#30263d;border-color:#9581b2;color:#fff}
+.catalog-page .category-filters button.active{background:#c3acf5;border-color:#c3acf5;color:#191020}

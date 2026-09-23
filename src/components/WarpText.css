@@ -1,0 +1,23 @@
+.warp-text {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: inherit;
+}
+
+.warp-text canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.warp-text__fallback{position:absolute;inset:0;display:grid;place-items:center;color:#c6b4fa;font-size:24px;white-space:nowrap}
+.warp-text[data-ready="true"] .warp-text__fallback{visibility:hidden}
+.hero-signature{position:absolute;right:-58px;bottom:-64px;width:160px;height:78px;transform:rotate(-45deg);z-index:2}
+.hero-signature .warp-text{min-height:0;height:100%}
+@media(max-width:520px){.hero-signature{right:-4px;bottom:-66px;width:125px;height:65px}}
+
