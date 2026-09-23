@@ -285,6 +285,9 @@
 .nav-language{margin:0;padding-left:18px;border-left:1px solid #ffffff20;gap:2px}
 .nav-language button{font-size:13px;padding:7px 9px;min-height:36px}
 .nav-language button:focus-visible{outline:2px solid #efedf3;outline-offset:2px}
+.prototype-nav-row{flex-wrap:wrap;row-gap:10px}
+.nav-actions{display:flex;align-items:center;gap:20px}
+.nav-start{flex-shrink:0;white-space:nowrap}
 .conversation-actions{display:flex;justify-content:flex-end;width:min(100%,850px);margin:0 auto;padding:12px 24px 0}
 .gooey-nav-container{--color-1:#ff6b6b;--color-2:#4dabf7;--color-3:#69db7c;--color-4:#ffd43b;font-size:16px}
 .original-hero{height:440px}
@@ -292,7 +295,6 @@
 .original-hero .hero-content{position:relative;z-index:1}
 .original-hero .eyebrow{margin-bottom:32px}
 .original-hero .hero-glow{display:none}
-.original-hero-cta{margin-top:25px}
 .specular-button__label{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 .composer-wrap .prompt-bar{margin:0 auto;max-width:100%;z-index:15}
 .composer-wrap .prompt-bar__input{font-size:16px;line-height:22px}
@@ -306,4 +308,5 @@
 @media(max-width:520px){.gooey-nav-container{font-size:14px}.gooey-nav-container nav ul{gap:1em;padding:0 .4em}.original-hero{height:425px}.original-hero .hero-content{padding-left:10px;padding-right:10px}.prompt-bar__pick{font-size:12px;padding:0 6px}.prompt-bar__row-desc{font-size:11px}.prompt-bar__menu[data-kind='effort']{max-width:100%}.original-reveal-section{padding:0 22px}.original-hero .hero-coordinate,.original-hero .hero-corner{display:none}}
 @media(max-width:620px){.prototype-nav-row{gap:8px;padding:14px 10px}.prototype-nav-row .gooey-nav-container{font-size:14px}.prototype-nav-row .gooey-nav-container nav ul{gap:6px;padding:0}.prototype-nav-row .gooey-nav-container nav ul li a{padding:10px 12px}.nav-language{padding-left:8px}.nav-language button{padding:7px 6px;font-size:12px}}
 @media(max-width:360px){.prototype-nav-row{gap:5px;padding-inline:6px}.prototype-nav-row .gooey-nav-container nav ul{gap:2px}.prototype-nav-row .gooey-nav-container nav ul li a{padding-inline:9px}.nav-language{padding-left:5px}.nav-language button{padding-inline:5px}}
+@media(max-width:620px){.nav-actions{gap:12px}.nav-start.specular-button{padding:10px 20px;font-size:15px}.nav-actions .nav-language{border-left:0;padding-left:0}}
 
